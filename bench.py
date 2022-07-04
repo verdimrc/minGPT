@@ -39,7 +39,7 @@ class Text8Dataset(Dataset):
     """
 
     def __init__(self, data_path, block_size, crop=None, override_vocab=None, unknown_ch2i: int|None= None):
-        self.unknown_ch2i = unknown_ch2i
+        self.unknown_ch2i = unknown_ch2i  # Hack: map unknown char to this token.
 
         # load the data and crop it appropriately
         with open(data_path, 'r') as f:
@@ -108,9 +108,6 @@ if __name__ == '__main__':
 
     logging.info("preparing the data loaders")
     # NOTE: REDUCED DATA SIZE FOR DEBUGGING, TODO CLEAN BEFORE MERGE IF EVER
-    # train_dataset = Text8Dataset('text8', args.block_size, crop=(0,         int(90e6)))
-    # val_dataset   = Text8Dataset('text8', args.block_size, crop=(int(90e6), int(5e6)), override_vocab=train_dataset.vocab)
-    # test_dataset  = Text8Dataset('text8', args.block_size, crop=(int(95e6), int(5e6)), override_vocab=train_dataset.vocab)
     train_dataset = Text8Dataset('text8', args.block_size, crop=(0,         int(90e4)))
     val_dataset   = Text8Dataset('text8', args.block_size, crop=(int(90e4), int(5e4)), override_vocab=train_dataset.vocab, unknown_ch2i=0)
     test_dataset  = Text8Dataset('text8', args.block_size, crop=(int(95e4), int(5e4)), override_vocab=train_dataset.vocab, unknown_ch2i=0)
