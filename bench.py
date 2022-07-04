@@ -26,6 +26,9 @@ else:
     import mingpt.fake_lightning as pl
 # -----------------------------------------------------------------------------
 
+print(f"{__file__}: actual pl is {pl.__name__}")
+# sys.exit(0)
+
 class Text8Dataset(Dataset):
     """
     e.g. Text8 dataset is often used: http://mattmahoney.net/dc/textdata.html
@@ -35,7 +38,8 @@ class Text8Dataset(Dataset):
     Testing data: Last 5M characters.
     """
 
-    def __init__(self, data_path, block_size, crop=None, override_vocab=None):
+    def __init__(self, data_path, block_size, crop=None, override_vocab=None, unknown_ch2i: int|None= None):
+        self.unknown_ch2i = unknown_ch2i
 
         # load the data and crop it appropriately
         with open(data_path, 'r') as f:
@@ -64,7 +68,10 @@ class Text8Dataset(Dataset):
         # attempt to fetch a chunk of (block_size + 1) items, but (block_size) will work too
         chunk = self.data[idx*self.block_size : min(len(self.data), (idx+1)*self.block_size + 1)]
         # map the string into a sequence of integers
-        ixes = [self.stoi[s] for s in chunk]
+        if self.unknown_ch2i is None:
+            ixes = [self.stoi[s] for s in chunk]
+        else:
+            ixes = [self.stoi.get(s, self.unknown_ch2i) for s in chunk]
         # if stars align (last idx and len(self.data) % self.block_size == 0), pad with -100, to skip training at the last position
         if len(ixes) < self.block_size + 1:
             assert len(ixes) == self.block_size # i believe this is the only way this could happen, make sure
@@ -95,13 +102,18 @@ if __name__ == '__main__':
             level=logging.INFO,
     )
 
-    torch.backends.cudnn.benchmark = True # autotune kernels
+    print(f'{torch.backends.cudnn.is_available()=}')
+    if torch.backends.cudnn.is_available():
+        torch.backends.cudnn.benchmark = True # autotune kernels
 
     logging.info("preparing the data loaders")
     # NOTE: REDUCED DATA SIZE FOR DEBUGGING, TODO CLEAN BEFORE MERGE IF EVER
-    train_dataset = Text8Dataset('text8', args.block_size, crop=(0,         int(90e6)))
-    val_dataset   = Text8Dataset('text8', args.block_size, crop=(int(90e6), int(5e6)), override_vocab=train_dataset.vocab)
-    test_dataset  = Text8Dataset('text8', args.block_size, crop=(int(95e6), int(5e6)), override_vocab=train_dataset.vocab)
+    # train_dataset = Text8Dataset('text8', args.block_size, crop=(0,         int(90e6)))
+    # val_dataset   = Text8Dataset('text8', args.block_size, crop=(int(90e6), int(5e6)), override_vocab=train_dataset.vocab)
+    # test_dataset  = Text8Dataset('text8', args.block_size, crop=(int(95e6), int(5e6)), override_vocab=train_dataset.vocab)
+    train_dataset = Text8Dataset('text8', args.block_size, crop=(0,         int(90e4)))
+    val_dataset   = Text8Dataset('text8', args.block_size, crop=(int(90e4), int(5e4)), override_vocab=train_dataset.vocab, unknown_ch2i=0)
+    test_dataset  = Text8Dataset('text8', args.block_size, crop=(int(95e4), int(5e4)), override_vocab=train_dataset.vocab, unknown_ch2i=0)
     common = {'batch_size': args.batch_size, 'pin_memory': bool(args.pin_memory), 'num_workers': args.num_workers}
     train_dataloader  = DataLoader(train_dataset, shuffle=True, **common)
     val_dataloader  = DataLoader(val_dataset, shuffle=False, **common)
@@ -125,7 +137,7 @@ if __name__ == '__main__':
 
     logging.info("testing...")
     test_dataloader = DataLoader(test_dataset, shuffle=False, **common)
-    trainer.test(test_dataloaders=test_dataloader)
+    trainer.test(dataloaders=test_dataloader)
 
     logging.info("sampling:")
     context = "anarchism originated as a term of"

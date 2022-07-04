@@ -82,9 +82,9 @@ class Trainer:
         logger.info("%s loss: %f", split, mean_loss)
         return mean_loss
 
-    def test(self, test_dataloaders): # note we expect a list of dataloaders here
+    def test(self, dataloaders): # note we expect a list of dataloaders here
         self.load_checkpoint() # load the best checkpoint we found during optimization
-        return self.eval_split_(test_dataloaders, 'test')
+        return self.eval_split_(dataloaders, 'test')
 
     def val(self, val_dataloader):
         return self.eval_split_(val_dataloader, 'val')
@@ -136,7 +136,7 @@ class Trainer:
                 # notify all relevant callbacks that a batch update ended. e.g. a callback may decay learning rate
                 for cb in self.callbacks:
                     if hasattr(cb, 'on_train_batch_end'):
-                        cb.on_train_batch_end(self, None, (x, y))
+                        cb.on_train_batch_end(self, None, None, (x, y))
 
                 # report progress
                 lr = optimizer.param_groups[0]['lr']
